@@ -13,7 +13,7 @@ function massage (text) {
 
 function findBotAttribute (name) {
   let x = roamAlphaAPI.q(`[
-    :find [?string]
+    :find (pull ?block [:block/uid :block/string])
     :where
       [?page :node/title "${BOT_PAGE_NAME}"]
       [?block :block/page ?page]
@@ -26,7 +26,10 @@ function findBotAttribute (name) {
     throw new Error(`attribute ${name} missing from [[${BOT_PAGE_NAME}]]`)
   }
 
-  return x[0].split(":: ")[1]
+  return {
+    uid: x[0][0].uid,
+    value: x[0][0].string.split(":: ")[1]
+  }
 }
 
 function uidForToday () {
@@ -49,14 +52,13 @@ function formatTime (unixSeconds) {
 }
 
 async function updateFromTelegram () {
-  let apiKey = findBotAttribute("API Key")
+  let apiKey = findBotAttribute("API Key").value
   let api = `https://api.telegram.org/bot${apiKey}`
 
-  let updateId = findBotAttribute("Latest Update ID")
-  if (updateId.match(/^\d+$/)) {
-    updateId = +updateId + 1
-  } else {
-    updateId = null
+  let updateId = null
+  let updateIdBlock = findBotAttribute("Latest Update ID")
+  if (updateIdBlock.value.match(/^\d+$/)) {
+    updateId = +updateIdBlock.value + 1
   }
 
   async function GET (path) {
