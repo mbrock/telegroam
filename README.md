@@ -8,6 +8,8 @@ JavaScript plugin for your Roam graph.
 
 ## Installation
 
+⚠️ **Warning!** You will probably lose the photos, videos, and other media, because of the way this code handles files from Telegram! I can’t recommend using Telegroam until this is fixed.
+
 I will make this more convenient later.
 
 1. In Telegram, talk to @BotFather to create a new bot and get an API
