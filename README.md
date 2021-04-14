@@ -20,7 +20,7 @@ I will make this more convenient later.
 4. Make these three nodes somewhere on the [[Telegram Bot]] page:
 
        API Key:: <key you get from Telegram's bot system>
-       Last Update ID::
+       Latest Update ID::
        Busy Since::
 
 5. Make a block with the text `{{[[roam/js]]}}`.
