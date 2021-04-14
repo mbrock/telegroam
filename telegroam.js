@@ -4,14 +4,14 @@
  * See the LICENSE file (MIT).
  */
 
-const BOT_PAGE_NAME = "Telegram Bot"
-
 function massage (text) {
   text = text.replace(/\bTODO\b/, "{{[[TODO]]}}")
   return text
 }
 
 function findBotAttribute (name) {
+  const BOT_PAGE_NAME = "Telegram Bot"
+
   let x = roamAlphaAPI.q(`[
     :find (pull ?block [:block/uid :block/string])
     :where
@@ -28,7 +28,7 @@ function findBotAttribute (name) {
 
   return {
     uid: x[0][0].uid,
-    value: x[0][0].string.split(":: ")[1]
+    value: x[0][0].string.split("::")[1].trim(),
   }
 }
 
@@ -61,8 +61,25 @@ async function updateFromTelegram () {
     updateId = +updateIdBlock.value + 1
   }
 
+  let busySince = null
+  let busySinceBlock = findBotAttribute("Busy Since")
+  if (busySinceBlock.value) {
+    // Someone else is doing this work already; let's not do anything.
+    console.log("Telegram busy")
+    return
+  } else {
+    roamAlphaAPI.updateBlock({
+      block: {
+        uid: busySinceBlock.uid,
+        string: `Busy Since:: ${(new Date).toISOString()}`
+      }
+    })
+  }
+
   async function GET (path) {
-    let x = await fetch(`${api}/${path}`)
+    let url = `${api}/${path}`
+    console.log("GET", url)
+    let x = await fetch(url)
     return await x.json()
   }
 
@@ -78,51 +95,63 @@ async function updateFromTelegram () {
 
   let maxOrder = Math.max(...orders)
 
-  let updateResponse = await GET(`getUpdates?offset=${updateId}`)
-  if (updateResponse.result.length) {
-    let i = 1
-    for (let { message } of updateResponse.result) {
-      console.log(message)
+  try {
+    let updateResponse = await GET(`getUpdates?offset=${updateId}&timeout=60`)
 
-      let name = message.from.first_name
-      let hhmm = formatTime(message.date)
-      let text = message.text || ""
+    if (updateResponse.result.length) {
+      let i = 1
+      for (let { message } of updateResponse.result) {
+        console.log(message)
 
-      text = massage(message.text)
+        let name = message.from.first_name
+        let hhmm = formatTime(message.date)
+        let text = message.text || ""
 
-      let uid = roamAlphaAPI.util.generateUID()
+        text = massage(message.text)
 
-      roamAlphaAPI.createBlock({
-        location: { "parent-uid": todayUid, order: maxOrder + i },
-        block: { uid, string: `[[${name}]] at ${hhmm}: ${text}` }
-      })
+        let uid = roamAlphaAPI.util.generateUID()
 
-      if (message.photo) {
-        let fileid = message.photo[message.photo.length - 1].file_id
-        let photo = await GET(
-          `getFile?chat_id=${message.chat.id}&file_id=${fileid}`)
-        let path = photo.result.file_path
-        let url = `https://api.telegram.org/file/bot${apiKey}/${path}`
-
-        // Insert the photo as a nested block.
         roamAlphaAPI.createBlock({
-          location: { "parent-uid": uid, order: 0 },
-          block: {
-            uid: roamAlphaAPI.util.generateUID(),
-            string: `![photo](${url})`
-          }
+          location: { "parent-uid": todayUid, order: maxOrder + i },
+          block: { uid, string: `[[${name}]] at ${hhmm}: ${text}` }
         })
+
+        if (message.photo) {
+          let fileid = message.photo[message.photo.length - 1].file_id
+          let photo = await GET(
+            `getFile?chat_id=${message.chat.id}&file_id=${fileid}`)
+          let path = photo.result.file_path
+          let url = `https://api.telegram.org/file/bot${apiKey}/${path}`
+
+          // Insert the photo as a nested block.
+          roamAlphaAPI.createBlock({
+            location: { "parent-uid": uid, order: 0 },
+            block: {
+              uid: roamAlphaAPI.util.generateUID(),
+              string: `![photo](${url})`
+            }
+          })
+        }
+
+        i++
       }
 
-      i++
+      // Save the latest Telegram message ID in the Roam graph.
+      let lastUpdate = updateResponse.result[updateResponse.result.length - 1]
+      roamAlphaAPI.updateBlock({
+        block: {
+          uid: updateIdBlock.uid,
+          string: `Latest Update ID:: ${lastUpdate.update_id}`
+        }
+      })
     }
 
-    // Save the latest Telegram message ID in the Roam graph.
-    let lastUpdate = updateResponse.result[updateResponse.result.length - 1]
+  } finally {
+    console.log("clearing busy since")
     roamAlphaAPI.updateBlock({
       block: {
-        uid: updateIdBlock.uid,
-        string: `Latest Update ID:: ${lastUpdate.update_id}`
+        uid: busySinceBlock.uid,
+        string: `Busy Since::`
       }
     })
   }
