@@ -5,9 +5,10 @@ let proxy = require("cors-anywhere")
 proxy.createServer({
   originWhitelist: ["https://roamresearch.com"],
   handleInitialRequest: (req, res, url) => {
-    if (!url.startsWith("https://api.telegram.com/file/bot")) {
-      res.writeHead(404, "nope")
-      res.end()
+    console.log({ url })
+    if (!url || !url.startsWith("https://api.telegram.com/file/bot")) {
+      res.writeHead(404)
+      res.end("nope")
       return true
     }
   }
