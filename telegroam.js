@@ -52,6 +52,8 @@ function formatTime (unixSeconds) {
 }
 
 async function updateFromTelegram () {
+  let corsProxyUrl = findBotAttribute("Trusted Media Proxy").value
+
   let apiKey = findBotAttribute("API Key").value
   let api = `https://api.telegram.org/bot${apiKey}`
 
@@ -263,12 +265,52 @@ async function updateFromTelegram () {
             let path = photo.result.file_path
             let url = `https://api.telegram.org/file/bot${apiKey}/${path}`
 
+            let mediauid = roamAlphaAPI.util.generateUID()
+
             // Insert the photo as a nested block.
             roamAlphaAPI.createBlock({
               location: { "parent-uid": uid, order: 0 },
               block: {
-                uid: roamAlphaAPI.util.generateUID(),
+                uid: mediauid,
                 string: generate(url)
+              }
+            })
+
+            let tmpuid = roamAlphaAPI.util.generateUID()
+
+            roamAlphaAPI.createBlock({
+              location: { "parent-uid": mediauid, order: 0 },
+              block: {
+                uid: tmpuid,
+                string: `Uploading in progress:: ${message.chat.id} ${fileid}`,
+              }
+            })
+
+            console.log("fetching", url, "from proxy")
+            let blobResponse = await fetch(
+              `${corsProxyUrl}/${url}`
+            )
+
+            let blob = await blobResponse.blob()
+
+            let ref = firebase.storage().ref().child(
+              `imgs/app/${graphName()}/${mediauid}`
+            )
+
+            console.log("uploading", url, "to Roam Firebase")
+            let result = await ref.put(blob)
+            let firebaseUrl = await ref.getDownloadURL()
+
+            roamAlphaAPI.updateBlock({
+              block: {
+                uid: mediauid,
+                string: generate(firebaseUrl)
+              }
+            })
+
+            roamAlphaAPI.deleteBlock({
+              block: {
+                uid: tmpuid
               }
             })
           }
@@ -485,30 +527,45 @@ async function updateFromTelegramContinuously () {
   }
 }
 
-async function installFirebaseSDK () {
-  if (!document.querySelector("#firebase-script")) {
+function graphName () {
+  return document.location.hash.split("/")[2]
+}
+
+async function startTelegroam () {
+  // We need to use the Firebase SDK, which Roam already uses, but
+  // Roam uses it via Clojure or whatever, so we import the SDK
+  // JavaScript ourselves from their CDN...
+
+  if (document.querySelector("#firebase-script")) {
+    okay()
+  } else {
     let script = document.createElement("SCRIPT")
     script.id = "firebase-script"
     script.src = "https://www.gstatic.com/firebasejs/8.4.1/firebase.js"
+    script.onload = okay
     document.body.appendChild(script)
   }
 
-  let firebaseConfig = {
-    apiKey: "AIzaSyDEtDZa7Sikv7_-dFoh9N5EuEmGJqhyK9g",
-    authDomain: "app.roamresearch.com",
-    databaseURL: "https://firescript-577a2.firebaseio.com",
-    storageBucket: "firescript-577a2.appspot.com",
+  async function okay () {
+    if (firebase.apps.length == 0) {
+
+      // This is Roam's Firebase configuration stuff.
+      // I hope they don't change it.
+      let firebaseConfig = {
+        apiKey: "AIzaSyDEtDZa7Sikv7_-dFoh9N5EuEmGJqhyK9g",
+        authDomain: "app.roamresearch.com",
+        databaseURL: "https://firescript-577a2.firebaseio.com",
+        storageBucket: "firescript-577a2.appspot.com",
+      }
+
+      firebase.initializeApp(firebaseConfig)
+    }
+
+    updateFromTelegramContinuously()
   }
-
-  firebase.initializeApp(firebaseConfig)
-
-  let storage = firebase.storage()
-  let ref = storage.ref()
 }
 
-installFirebaseSDK()
-
-updateFromTelegramContinuously()
+startTelegroam()
 
 // The following VCard parser is copied from
 //
