@@ -485,6 +485,20 @@ async function updateFromTelegramContinuously () {
   }
 }
 
+async function installFirebaseSDK () {
+  if (!document.querySelector("#firebase-script")) {
+    let script = document.createElement("SCRIPT")
+    script.id = "firebase-script"
+    script.src = "https://www.gstatic.com/firebasejs/8.4.1/firebase.js"
+    document.body.appendChild(script)
+  }
+
+  let storage = firebase.storage()
+  let ref = storage.ref()
+}
+
+installFirebaseSDK()
+
 updateFromTelegramContinuously()
 
 // The following VCard parser is copied from
