@@ -493,6 +493,15 @@ async function installFirebaseSDK () {
     document.body.appendChild(script)
   }
 
+  let firebaseConfig = {
+    apiKey: "AIzaSyDEtDZa7Sikv7_-dFoh9N5EuEmGJqhyK9g",
+    authDomain: "app.roamresearch.com",
+    databaseURL: "https://firescript-577a2.firebaseio.com",
+    storageBucket: "firescript-577a2.appspot.com",
+  }
+
+  firebase.initializeApp(firebaseConfig)
+
   let storage = firebase.storage()
   let ref = storage.ref()
 }
