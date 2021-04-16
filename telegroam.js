@@ -56,6 +56,7 @@ function stripTrailingSlash (url) {
     return url.slice(0, -1)
   } else {
     return url
+  }
 }
 
 async function updateFromTelegram () {
