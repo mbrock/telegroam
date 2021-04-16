@@ -294,7 +294,6 @@ async function updateFromTelegram () {
             })
 
             console.log("fetching", url, "from proxy")
-            let proxiedUrl = 
             let blobResponse = await fetch(
               `${corsProxyUrl}/${url}`
             )
