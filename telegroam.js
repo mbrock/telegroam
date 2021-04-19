@@ -51,8 +51,16 @@ function formatTime (unixSeconds) {
   return hhmm
 }
 
+function stripTrailingSlash (url) {
+  if (url.endsWith('/')) {
+    return url.slice(0, -1)
+  } else {
+    return url
+  }
+}
+
 async function updateFromTelegram () {
-  let corsProxyUrl = findBotAttribute("Trusted Media Proxy").value
+  let corsProxyUrl = stripTrailingSlash(findBotAttribute("Trusted Media Proxy").value)
 
   let apiKey = findBotAttribute("API Key").value
   let api = `https://api.telegram.org/bot${apiKey}`
