@@ -8,24 +8,27 @@ JavaScript plugin for your Roam graph.
 
 ## ⚠️ Warning!
 
-Your media files are passed through a trusted middleman, a "proxy."
+If you use the default proxy URL as in the instructions below, your
+media files will get passed through a trusted middleman.
 
-This is necessary because of how Telegram's API works.
+You can run your own proxy easily using Heroku's free tier.  This is
+how I run my proxy.
+
+Click the button below and Heroku will guide you through the whole
+thing with zero configuration or coding.  You will end up with your
+very own proxy URL.
+
+[![Deploy](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy)
+
+### Why is a proxy necessary?
+
+A proxy is necessary because of how Telegram's API works.
 
 When Telegroam receives a photo, video, or audio, it has to download
 that file from Telegram in order to upload it to Roam's file storage.
 
-But Telegram doesn't allow the browser to download its files, for some
-reason.  Instead, we have to download the files via the proxy server.
-That means the operator of the proxy server is technically able to
-save the file.
-
-### Running your own proxy server
-
-You can run your own proxy server by just pushing the Telegroam
-repository to Heroku, if you know what that means.  It's relatively
-easy, and I encourage you to do it, because I don't actually want to
-run this proxy.
+But Telegram doesn't allow the browser to download its files, probably
+because of a bug.  Instead we have to download via the proxy server.
 
 ## Installation
 
