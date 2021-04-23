@@ -1,0 +1,5 @@
+{
+  "name": "Telegroam Proxy",
+  "description": "A proxy for making CORS requests to Telegram's bot API",
+  "repository": "https://github.com/mbrock/telegroam"
+}
