@@ -43,6 +43,7 @@ I will make this more convenient later.
 
 4. Make these nodes somewhere on the [[Telegram Bot]] page:
 
+       Inbox Name:: [[Inbox]]
        API Key:: <key you get from Telegram's bot system>
        Trusted Media Proxy:: https://telegram-cors-proxy.herokuapp.com
        Latest Update ID::
