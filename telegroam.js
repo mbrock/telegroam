@@ -62,6 +62,8 @@ function stripTrailingSlash (url) {
 async function updateFromTelegram () {
   let corsProxyUrl = stripTrailingSlash(findBotAttribute("Trusted Media Proxy").value)
 
+  let inboxName = findBotAttribute("Inbox Name").value
+
   let apiKey = findBotAttribute("API Key").value
   let api = `https://api.telegram.org/bot${apiKey}`
 
@@ -103,22 +105,44 @@ async function updateFromTelegram () {
     return await x.json()
   }
 
-  let todayUid = uidForToday()
-
-  let orders = roamAlphaAPI.q(`[
-    :find (?order ...)
-    :where
-      [?today :block/uid "${todayUid}"]
-      [?today :block/children ?block]
-      [?block :block/order ?order]
-  ]`)
-
-  let maxOrder = Math.max(...orders)
-
   try {
     let updateResponse = await GET(`getUpdates?offset=${updateId}&timeout=60`)
 
     console.log("WHOA", updateResponse)
+
+    let dailyNoteUid = uidForToday()
+
+    let inboxUid
+    let inboxUids = roamAlphaAPI.q(`[
+      :find (?uid ...)
+      :where
+        [?today :block/uid "${dailyNoteUid}"]
+        [?today :block/children ?block]
+        [?block :block/string "${inboxName}"]
+        [?block :block/uid ?uid]
+    ]`)
+
+    if (inboxUids.length) {
+      inboxUid = inboxUids[0]
+    } else {
+      inboxUid = roamAlphaAPI.util.generateUID()
+      roamAlphaAPI.createBlock({
+        location: { "parent-uid": dailyNoteUid, order: 0 },
+        block: { uid: inboxUid, string: inboxName }
+      })
+    }
+
+    let orders = roamAlphaAPI.q(`[
+      :find (?order ...)
+      :where
+        [?today :block/uid "${inboxUid}"]
+        [?today :block/children ?block]
+        [?block :block/order ?order]
+    ]`)
+
+    let maxOrder = Math.max(-1, ...orders)
+
+    console.log(`orders: ${orders} max: ${maxOrder}`)
 
     if (updateResponse.result.length) {
       let i = 1
@@ -130,7 +154,7 @@ async function updateFromTelegram () {
         if (poll) {
           let uid = roamAlphaAPI.util.generateUID()
           roamAlphaAPI.createBlock({
-            location: { "parent-uid": todayUid, order: maxOrder + i },
+            location: { "parent-uid": inboxUid, order: maxOrder + i },
             block: { uid, string: `((telegrampoll-${poll.id}))` }
           })
 
@@ -263,7 +287,7 @@ async function updateFromTelegram () {
           let uid = `telegram-${message.chat.id}-${message.message_id}`
 
           roamAlphaAPI.createBlock({
-            location: { "parent-uid": todayUid, order: maxOrder + i },
+            location: { "parent-uid": inboxUid, order: maxOrder + i },
             block: { uid, string: `[[${name}]] at ${hhmm}: ${text}` }
           })
 
@@ -529,6 +553,7 @@ async function updateFromTelegramContinuously () {
         throw e
       } else {
         console.error(e)
+        alert(`Telegroam: ${e}`)
         throw e
       }
     }
