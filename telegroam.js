@@ -207,14 +207,14 @@
       }
 
       function urlWithParams(url, params) {
-        let qs = Object.entries(params).map((k, v) => `${k}=${v}`).join("&")
+        let qs = Object.entries(params).map(([k, v]) => `${k}=${v}`).join("&")
         return `${url}?${qs}`
       }
 
       function mapStuff({ latitude, longitude }) {
         let d = 0.004
         let bb = [longitude - d, latitude - d, longitude + d, latitude + d]
-        let bbs = bb.join("%2C")
+        let bbox = bb.join("%2C")
         let marker = [latitude, longitude].join("%2C")
 
         let osm = urlWithParams("https://www.openstreetmap.org/", {
