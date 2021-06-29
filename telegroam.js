@@ -63,11 +63,12 @@
     }
   }
 
+  let telegramApiKey = findBotAttribute("API Key").value
+
   async function updateFromTelegram() {
     let corsProxyUrl = stripTrailingSlash(findBotAttribute("Trusted Media Proxy").value)
     let inboxName = findBotAttribute("Inbox Name").value
-    let apiKey = findBotAttribute("API Key").value
-    let api = `https://api.telegram.org/bot${apiKey}`
+    let api = `https://api.telegram.org/bot${telegramApiKey}`
 
     let updateId = null
     let updateIdBlock = findBotAttribute("Latest Update ID")
@@ -277,7 +278,7 @@
           let photo = await GET(
             `getFile?chat_id=${message.chat.id}&file_id=${fileid}`)
           let path = photo.result.file_path
-          let url = `https://api.telegram.org/file/bot${apiKey}/${path}`
+          let url = `https://api.telegram.org/file/bot${telegramApiKey}/${path}`
 
           let mediauid = createNestedBlock(uid, {
             string: generate(url)
@@ -465,27 +466,73 @@
     return new Promise(ok => setTimeout(ok, 1000 * s))
   }
 
+  function hex(buffer) {
+    return [...new Uint8Array(buffer)].map(
+      x => x.toString(16).padStart(2, '0')
+    ).join("")
+  }
+
+  async function hashString(string) {
+    let hash =
+      await crypto.subtle.digest("SHA-256",
+        new TextEncoder("utf-8").encode(string))
+
+    return hex(hash).substr(0, 16)
+  }
+
+  const lockStatus = {
+    ok: 200,
+    busy: 423,
+  }
+
+  const lockBusy = Symbol("lock busy")
+
+  async function runWithMutualExclusionLock({ waitSeconds, action }) {
+    let lockId =
+      await hashString([graphName(), telegramApiKey].join(":"))
+
+    let nonce =
+      roamAlphaAPI.util.generateUID()
+
+    let lockPath =
+      `https://binary-semaphore.herokuapp.com/lock/${lockId}/${nonce}`
+
+    for (;;) {
+      let result =
+        await fetch(lockPath, { method: "PUT" })
+
+      if (result.status === lockStatus.ok) {
+        try {
+          return await action()
+        } finally {
+          console.log("telegroam: releasing lock")
+          try {
+            await fetch(lockPath, { method: "DELETE" })
+          } catch (e) {
+            console.error(e)
+            throw e
+          }
+        }
+
+      } else if (result.status === lockStatus.busy) {
+        console.log(`telegroam: lock busy; waiting ${waitSeconds}s`)
+        await sleep(waitSeconds)
+      }
+    }
+  }
+
   async function updateFromTelegramContinuously() {
     for (;;) {
       try {
-
-        let store = firebase.firestore()
-        let lock = store.collection("telegroam").doc("lock")
-        await store.runTransaction(async tx => {
-          let lockStatus = await tx.get(lock)
-          if (lockStatus.exists)
+        let result = await runWithMutualExclusionLock({
+          waitSeconds: 30,
+          action: async () => {
+            console.log("telegroam: lock acquired; fetching messages")
+            return await updateFromTelegram()
+          }
         })
 
-        console.log("telegroam: starting message fetch")
-
-        // this will block until a message is received
-        // or the Telegram long poll expires by timeout
-        let result = await updateFromTelegram()
-
       } catch (e) {
-        // this can be a 409 Conflict in case of several Roam clients
-        // that are waiting on the same Telegram long poll endpoint
-
         console.error(e)
         console.log("telegroam: ignoring error; retrying in 30s")
         await sleep(30)
@@ -518,7 +565,6 @@
         // This is Roam's Firebase configuration stuff.
         // I hope they don't change it.
         let firebaseConfig = {
-          projectId: "firescript-577a2",
           apiKey: "AIzaSyDEtDZa7Sikv7_-dFoh9N5EuEmGJqhyK9g",
           authDomain: "app.roamresearch.com",
           databaseURL: "https://firescript-577a2.firebaseio.com",
