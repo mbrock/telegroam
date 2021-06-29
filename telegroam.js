@@ -77,7 +77,11 @@
 
     async function GET(path) {
       let response = await fetch(`${api}/${path}`)
-      return await response.json()
+      if (response.ok) {
+        return await response.json()
+      } else {
+        throw new Error(`telegroam fetch: ${response.status}`)
+      }
     }
 
     let updateResponse = await GET(`getUpdates?offset=${updateId}&timeout=60`)
@@ -103,372 +107,13 @@
       })
     }
 
-    let orders = roamAlphaAPI.q(`[
-      :find (?order ...)
-      :where
-        [?today :block/uid "${inboxUid}"]
-        [?today :block/children ?block]
-        [?block :block/order ?order]
-    ]`)
-
-    let maxOrder = Math.max(-1, ...orders)
+    let maxOrder = findMaxOrder(inboxUid)
 
     if (updateResponse.result.length) {
       let i = 1
       for (let result of updateResponse.result) {
-        console.log(result)
-
-        let { message, edited_message, poll } = result
-
-        if (poll) {
-          let uid = roamAlphaAPI.util.generateUID()
-          roamAlphaAPI.createBlock({
-            location: { "parent-uid": inboxUid, order: maxOrder + i },
-            block: { uid, string: `((telegrampoll-${poll.id}))` }
-          })
-
-          let tableuid = roamAlphaAPI.util.generateUID()
-          roamAlphaAPI.createBlock({
-            location: { "parent-uid": uid, order: 0 },
-            block: {
-              uid: tableuid,
-              string: `{{[[table]]}}`
-            }
-          })
-
-          poll.options.forEach((option, i) => {
-            let rowuid = roamAlphaAPI.util.generateUID()
-            roamAlphaAPI.createBlock({
-              location: { "parent-uid": tableuid, order: i },
-              block: {
-                uid: rowuid,
-                string: `((telegrampoll-${poll.id}-${i}))`
-              }
-            })
-
-            roamAlphaAPI.createBlock({
-              location: { "parent-uid": rowuid, order: 0 },
-              block: {
-                uid: roamAlphaAPI.util.generateUID(),
-                string: `${option.voter_count}`.toString()
-              }
-            })
-
-          })
-        }
-
-        function mapStuff({ latitude, longitude }) {
-          let d = 0.004
-          let bb = [longitude - d, latitude - d, longitude + d, latitude + d]
-          let bbs = bb.join("%2C")
-          let marker = [latitude, longitude].join("%2C")
-
-          let osm = (
-            `https://www.openstreetmap.org/?mlat=${latitude}&mlon=${longitude}`
-          )
-
-          let gmaps = (
-            `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`
-          )
-
-          return {
-            embed: `:hiccup[:iframe {:width "100%" :height "400" :src "https://www.openstreetmap.org/export/embed.html?bbox=${bbs}&layer=mapnik&marker=${marker}"}]`,
-            osm: `[View on OpenStreetMap](${osm})`,
-            gmaps: `[View on Google Maps](${gmaps})`,
-          }
-        }
-
-        function makeLocationBlock(uid, location) {
-          let mapuid = `${uid}-map`
-
-          let { embed, osm, gmaps } = mapStuff(location)
-
-          roamAlphaAPI.createBlock({
-            location: { "parent-uid": uid, order: 0 },
-            block: {
-              uid: mapuid,
-              string: embed,
-            }
-          })
-
-          roamAlphaAPI.createBlock({
-            location: { "parent-uid": mapuid, order: 0 },
-            block: {
-              uid: `${mapuid}-link-osm`,
-              string: osm,
-            }
-          })
-
-          roamAlphaAPI.createBlock({
-            location: { "parent-uid": mapuid, order: 1 },
-            block: {
-              uid: `${mapuid}-link-gmaps`,
-              string: gmaps,
-            }
-          })
-        }
-
-        if (edited_message && edited_message.location) {
-          let message = edited_message
-          let uid = `telegram-${message.chat.id}-${message.message_id}`
-          let mapuid = `${uid}-map`
-
-          let { embed, osm, gmaps } = mapStuff(edited_message.location)
-
-          roamAlphaAPI.updateBlock({
-            block: {
-              uid: mapuid,
-              string: embed,
-            }
-          })
-
-          roamAlphaAPI.updateBlock({
-            block: {
-              uid: `${mapuid}-link-osm`,
-              string: osm
-            }
-          })
-
-          roamAlphaAPI.updateBlock({
-            block: {
-              uid: `${mapuid}-link-gmaps`,
-              string: gmaps
-            }
-          })
-        }
-
-        if (message) {
-          let name = message.from ? message.from.first_name : null
-          let hhmm = formatTime(message.date)
-          let text = massage(message.text || "")
-
-          if (message.location)
-            text = "#Location"
-          if (message.voice)
-            text = "#Voice"
-          if (message.video_note)
-            text = "#Video"
-          if (message.photo)
-            text = "#Photo"
-          if (message.contact)
-            text = "#Contact"
-
-          let uid = `telegram-${message.chat.id}-${message.message_id}`
-
-          roamAlphaAPI.createBlock({
-            location: { "parent-uid": inboxUid, order: maxOrder + i },
-            block: { uid, string: `[[${name}]] at ${hhmm}: ${text}` }
-          })
-
-          async function insertFile(fileid, generate) {
-            let photo = await GET(
-              `getFile?chat_id=${message.chat.id}&file_id=${fileid}`)
-            let path = photo.result.file_path
-            let url = `https://api.telegram.org/file/bot${apiKey}/${path}`
-
-            let mediauid = roamAlphaAPI.util.generateUID()
-
-            // Insert the photo as a nested block.
-            roamAlphaAPI.createBlock({
-              location: { "parent-uid": uid, order: 0 },
-              block: {
-                uid: mediauid,
-                string: generate(url)
-              }
-            })
-
-            let tmpuid = roamAlphaAPI.util.generateUID()
-
-            roamAlphaAPI.createBlock({
-              location: { "parent-uid": mediauid, order: 0 },
-              block: {
-                uid: tmpuid,
-                string: `Uploading in progress:: ${message.chat.id} ${fileid}`,
-              }
-            })
-
-            console.log("fetching", url, "from proxy")
-            let blobResponse = await fetch(
-              `${corsProxyUrl}/${url}`
-            )
-
-            let blob = await blobResponse.blob()
-
-            let ref = firebase.storage().ref().child(
-              `imgs/app/${graphName()}/${mediauid}`
-            )
-
-            console.log("uploading", url, "to Roam Firebase")
-            let result = await ref.put(blob)
-            let firebaseUrl = await ref.getDownloadURL()
-
-            roamAlphaAPI.updateBlock({
-              block: {
-                uid: mediauid,
-                string: generate(firebaseUrl)
-              }
-            })
-
-            roamAlphaAPI.deleteBlock({
-              block: {
-                uid: tmpuid
-              }
-            })
-          }
-
-          let photo = url => `![photo](${url})`
-          let audio = url => `:hiccup[:audio {:controls true :src "${url}"}]`
-          let video = url => `:hiccup[:video {:controls true :src "${url}"}]`
-
-          if (message.sticker) {
-            if (message.sticker.is_animated)
-              await insertFile(message.sticker.thumb.file_id, photo)
-            else
-              await insertFile(message.sticker.file_id, photo)
-          }
-
-          if (message.photo) {
-            let fileid = message.photo[message.photo.length - 1].file_id
-            await insertFile(fileid, photo)
-          }
-
-          if (message.voice) {
-            await insertFile(message.voice.file_id, audio)
-          }
-
-          if (message.video_note) {
-            await insertFile(message.video_note.file_id, video)
-          }
-
-          if (message.document) {
-            await insertFile(message.document.file_id, url =>
-              `File:: [${message.document.file_name}](${url})`)
-          }
-
-          if (message.contact) {
-            if (!message.contact.vcard) {
-
-              let { first_name, last_name, phone_number } = message.contact
-
-              let name = first_name
-              if (last_name) name += ` ${last_name}`
-
-              let carduid = roamAlphaAPI.util.generateUID()
-              roamAlphaAPI.createBlock({
-                location: { "parent-uid": uid, order: 0 },
-                block: {
-                  uid: carduid,
-                  string: `[[${name}]]`,
-                }
-              })
-
-              roamAlphaAPI.createBlock({
-                location: { "parent-uid": carduid, order: 0 },
-                block: {
-                  uid: roamAlphaAPI.util.generateUID(),
-                  string: `Phone Number:: ${phone_number}`
-                }
-              })
-            }
-
-            if (message.contact.vcard) {
-              let vcard = parseVcard(message.contact.vcard)
-              delete vcard.begin
-              delete vcard.prodid
-              delete vcard.version
-              delete vcard.end
-
-              if (vcard.fn)
-                delete vcard.n
-
-              let translations = {
-                n: "Name",
-                fn: "Full Name",
-                email: "Email",
-                tel: "Phone Number",
-                adr: "Street Address",
-                bday: "Birthday",
-                impp: "Social Media",
-              }
-
-              console.log(vcard)
-
-              let carduid = roamAlphaAPI.util.generateUID()
-              roamAlphaAPI.createBlock({
-                location: { "parent-uid": uid, order: 0 },
-                block: {
-                  uid: carduid,
-                  string: `[[${vcard.fn[0].value.trim()}]]`,
-                }
-              })
-
-              Object.keys(vcard).forEach((k, i) => {
-                let subuid = roamAlphaAPI.util.generateUID()
-
-                let string = (translations[k] || k) + "::"
-
-                let singleValue = (
-                  vcard[k].length == 1 && typeof vcard[k][0].value == "string"
-                )
-
-                if (singleValue) {
-                  string += " " + vcard[k][0].value.trim()
-                }
-
-                roamAlphaAPI.createBlock({
-                  location: { "parent-uid": carduid, order: i },
-                  block: {
-                    uid: subuid,
-                    string,
-                  }
-                })
-
-                if (!singleValue)
-                  for (let j = 0; j < vcard[k].length; j++) {
-                    let string = vcard[k][j].value
-                    if (string instanceof Array)
-                      string = string.filter(x => x.trim()).join("\n")
-
-                    roamAlphaAPI.createBlock({
-                      location: { "parent-uid": subuid, order: j },
-                      block: {
-                        uid: roamAlphaAPI.util.generateUID(),
-                        string: string.trim(),
-                      }
-                    })
-                  }
-              })
-            }
-          }
-
-          if (message.location) {
-            makeLocationBlock(uid, message.location)
-          }
-
-          if (message.poll) {
-            console.log("POLL", message.poll)
-            let polluid = `telegrampoll-${message.poll.id}`
-            roamAlphaAPI.createBlock({
-              location: { "parent-uid": uid, order: 0 },
-              block: {
-                uid: polluid,
-                string: `[[Poll]] ${message.poll.question}`
-              }
-            })
-
-            message.poll.options.forEach((option, i) => {
-              roamAlphaAPI.createBlock({
-                location: { "parent-uid": polluid, order: i },
-                block: {
-                  uid: `telegrampoll-${message.poll.id}-${i}`,
-                  string: option.text,
-                }
-              })
-            })
-          }
-        }
-
-        i++
+        await handleTelegramUpdate(result, i)
+        ++i
       }
 
       // Save the latest Telegram message ID in the Roam graph.
@@ -481,7 +126,339 @@
       })
     }
 
-    return "ok"
+    function findMaxOrder(parent) {
+      let orders = roamAlphaAPI.q(`[
+        :find (?order ...)
+        :where
+          [?today :block/uid "${parent}"]
+          [?today :block/children ?block]
+          [?block :block/order ?order]
+      ]`)
+
+      let maxOrder = Math.max(-1, ...orders)
+      return maxOrder
+    }
+
+    function createNestedBlock(parent, { uid, order, string, children = [] }) {
+      if (uid === undefined) {
+        uid = roamAlphaAPI.util.generateUID()
+      }
+
+      if (order === undefined) {
+        order = findMaxOrder(parent) + 1
+      }
+
+      roamAlphaAPI.createBlock({
+        location: { "parent-uid": parent, order },
+        block: { uid, string }
+      })
+
+      for (let child of children) {
+        createNestedBlock(uid, child)
+      }
+
+      return uid
+    }
+
+    async function handleTelegramUpdate(result, i) {
+      let { message, edited_message, poll } = result
+
+      if (poll) {
+        handlePollCreation()
+      }
+
+      if (edited_message && edited_message.location) {
+        handleLiveLocationUpdate()
+      }
+
+      if (message) {
+        await handleMessage()
+      }
+
+      i++
+      return i
+
+      function handlePollCreation() {
+        createNestedBlock(inboxUid, {
+          order: maxOrder + i,
+          string: `((telegrampoll-${poll - id}))`,
+          children: [{
+            string: "{{[[table]]}}",
+            children: poll.options.map(({ option, i }) => ({
+              string: `((telegrampoll-${poll.id}-${i}))`,
+              children: [{
+                string: `${option.voter_count}`
+              }]
+            }))
+          }]
+        })
+      }
+
+      function urlWithParams(url, params) {
+        let qs = Object.entries(params).map((k, v) => `${k}=${v}`).join("&")
+        return `${url}?${qs}`
+      }
+
+      function mapStuff({ latitude, longitude }) {
+        let d = 0.004
+        let bb = [longitude - d, latitude - d, longitude + d, latitude + d]
+        let bbs = bb.join("%2C")
+        let marker = [latitude, longitude].join("%2C")
+
+        let osm = urlWithParams("https://www.openstreetmap.org/", {
+          mlat: latitude,
+          mlon: longitude
+        })
+
+        let gmaps = urlWithParams("https://www.google.com/maps/search/", {
+          api: "1",
+          query: `${latitude},${longitude}`
+        })
+
+        let url = urlWithParams(
+          "https://www.openstreetmap.org/export/embed.html", {
+            layer: "mapnik",
+            bbox,
+            marker
+          })
+
+        return {
+          embed: `:hiccup[:iframe {
+            :width "100%" :height "400"
+            :src "${url}"
+          }]`,
+          osm: `[View on OpenStreetMap](${osm})`,
+          gmaps: `[View on Google Maps](${gmaps})`,
+        }
+      }
+
+      function makeLocationBlock(uid, location) {
+        let mapuid = `${uid}-map`
+        let { embed, osm, gmaps } = mapStuff(location)
+
+        createNestedBlock(uid, {
+          uid: mapuid,
+          string: embed,
+          children: [{
+            uid: `${mapuid}-link-osm`,
+            string: osm
+          }, {
+            uid: `${mapuid}-link-gmaps`,
+            string: gmaps
+          }]
+        })
+      }
+
+      async function handleMessage() {
+        let name = message.from ? message.from.first_name : null
+        let hhmm = formatTime(message.date)
+        let text = massage(message.text || "")
+
+        if (message.location)
+          text = "#Location"
+        if (message.voice)
+          text = "#Voice"
+        if (message.video_note)
+          text = "#Video"
+        if (message.photo)
+          text = "#Photo"
+        if (message.contact)
+          text = "#Contact"
+
+        let uid = `telegram-${message.chat.id}-${message.message_id}`
+
+        createNestedBlock(inboxUid, {
+          uid,
+          order: maxOrder + i,
+          string: `[[${name}]] at ${hhmm}: ${text}`
+        })
+
+        async function insertFile(fileid, generate) {
+          let photo = await GET(
+            `getFile?chat_id=${message.chat.id}&file_id=${fileid}`)
+          let path = photo.result.file_path
+          let url = `https://api.telegram.org/file/bot${apiKey}/${path}`
+
+          let mediauid = createNestedBlock(uid, {
+            string: generate(url)
+          })
+
+          let tmpuid = createNestedBlock(mediauid, {
+            string: `Uploading in progress:: ${message.chat.id} ${fileid}`
+          })
+
+          console.log("fetching", url, "from proxy")
+          let blobResponse = await fetch(
+            `${corsProxyUrl}/${url}`
+          )
+
+          let blob = await blobResponse.blob()
+
+          let ref = firebase.storage().ref().child(
+            `imgs/app/${graphName()}/${mediauid}`
+          )
+
+          console.log("uploading", url, "to Roam Firebase")
+          let result = await ref.put(blob)
+          let firebaseUrl = await ref.getDownloadURL()
+
+          roamAlphaAPI.updateBlock({
+            block: {
+              uid: mediauid,
+              string: generate(firebaseUrl)
+            }
+          })
+
+          roamAlphaAPI.deleteBlock({
+            block: {
+              uid: tmpuid
+            }
+          })
+        }
+
+        let photo = url => `![photo](${url})`
+        let audio = url => `:hiccup[:audio {:controls true :src "${url}"}]`
+        let video = url => `:hiccup[:video {:controls true :src "${url}"}]`
+
+        if (message.sticker) {
+          if (message.sticker.is_animated)
+            await insertFile(message.sticker.thumb.file_id, photo)
+          else
+            await insertFile(message.sticker.file_id, photo)
+        }
+
+        if (message.photo) {
+          let fileid = message.photo[message.photo.length - 1].file_id
+          await insertFile(fileid, photo)
+        }
+
+        if (message.voice) {
+          await insertFile(message.voice.file_id, audio)
+        }
+
+        if (message.video_note) {
+          await insertFile(message.video_note.file_id, video)
+        }
+
+        if (message.document) {
+          await insertFile(message.document.file_id, url => `File:: [${message.document.file_name}](${url})`)
+        }
+
+        if (message.location) {
+          makeLocationBlock(uid, message.location)
+        }
+
+        if (message.poll) {
+          createNestedBlock(uid, {
+            uid: `telegrampoll-${message.poll.id}`,
+            order: 0,
+            children: message.poll.options.map((option, i) => ({
+              uid: `telegrampoll-${message.poll.id}-${i}`,
+              order: i,
+              string: option.text
+            }))
+          })
+        }
+
+        if (message.contact) {
+          if (!message.contact.vcard) {
+            let { first_name, last_name, phone_number } = message.contact
+
+            let name = first_name
+            if (last_name)
+              name += ` ${last_name}`
+
+            createNestedBlock(uid, [{
+              string: `[[${name}]]`,
+              children: [{
+                string: `Phone Number:: ${phone_number}`
+              }]
+            }])
+          }
+
+          if (message.contact.vcard) {
+            let vcard = parseVcard(message.contact.vcard)
+            delete vcard.begin
+            delete vcard.prodid
+            delete vcard.version
+            delete vcard.end
+
+            if (vcard.fn)
+              delete vcard.n
+
+            let translations = {
+              n: "Name",
+              fn: "Full Name",
+              email: "Email",
+              tel: "Phone Number",
+              adr: "Street Address",
+              bday: "Birthday",
+              impp: "Social Media",
+            }
+
+            console.log(vcard)
+
+            createNestedBlock(uid, {
+              order: 0,
+              string: `[[${vcard.fn[0].value.trim()}]]`,
+              children: Object.keys(vcard).map((k, i) => {
+                let string = (translations[k] || k) + "::"
+
+                let single = (
+                  vcard[k].length == 1 && typeof vcard[k][0].value == "string"
+                )
+
+                if (single) {
+                  string += " " + vcard[k][0].value.trim()
+                }
+
+                return {
+                  order: i,
+                  string,
+                  children: !single ? [] : vcard[k].map(({ value }, j) => ({
+                    order: j,
+                    string: (
+                      value instanceof Array
+                        ? value.filter(x => x.trim()).join("\n")
+                        : value.trim()
+                    )
+                  }))
+                }
+              })
+            })
+          }
+        }
+      }
+
+      function handleLiveLocationUpdate() {
+        let message = edited_message
+        let uid = `telegram-${message.chat.id}-${message.message_id}`
+        let mapuid = `${uid}-map`
+
+        let { embed, osm, gmaps } = mapStuff(edited_message.location)
+
+        roamAlphaAPI.updateBlock({
+          block: {
+            uid: mapuid,
+            string: embed,
+          }
+        })
+
+        roamAlphaAPI.updateBlock({
+          block: {
+            uid: `${mapuid}-link-osm`,
+            string: osm
+          }
+        })
+
+        roamAlphaAPI.updateBlock({
+          block: {
+            uid: `${mapuid}-link-gmaps`,
+            string: gmaps
+          }
+        })
+      }
+    }
   }
 
   function sleep(s) {
@@ -489,20 +466,29 @@
   }
 
   async function updateFromTelegramContinuously() {
-    for (; ;) {
+    for (;;) {
       try {
-        console.log("trying to update from Telegram")
+
+        let store = firebase.firestore()
+        let lock = store.collection("telegroam").doc("lock")
+        await store.runTransaction(async tx => {
+          let lockStatus = await tx.get(lock)
+          if (lockStatus.exists)
+        })
+
+        console.log("telegroam: starting message fetch")
+
+        // this will block until a message is received
+        // or the Telegram long poll expires by timeout
         let result = await updateFromTelegram()
-        if (result == "ok") {
-          await sleep(1)
-        } else {
-          console.log("telegroam: retrying in 60s")
-          await sleep(60)
-        }
+
       } catch (e) {
+        // this can be a 409 Conflict in case of several Roam clients
+        // that are waiting on the same Telegram long poll endpoint
+
         console.error(e)
-        console.log("telegroam: ignoring error; retrying in 60s")
-        await sleep(60)
+        console.log("telegroam: ignoring error; retrying in 30s")
+        await sleep(30)
       }
     }
   }
@@ -532,6 +518,7 @@
         // This is Roam's Firebase configuration stuff.
         // I hope they don't change it.
         let firebaseConfig = {
+          projectId: "firescript-577a2",
           apiKey: "AIzaSyDEtDZa7Sikv7_-dFoh9N5EuEmGJqhyK9g",
           authDomain: "app.roamresearch.com",
           databaseURL: "https://firescript-577a2.firebaseio.com",
