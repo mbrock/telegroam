@@ -65,8 +65,19 @@
 
   let telegramApiKey = findBotAttribute("API Key").value
 
+  function unlinkify(s) {
+    if (s.match(/^\[.*?\]\((.*?)\)$/)) {
+      return RegExp.$1
+    } else {
+      return s
+    }
+  }
+
   async function updateFromTelegram() {
-    let corsProxyUrl = stripTrailingSlash(findBotAttribute("Trusted Media Proxy").value)
+    let corsProxyUrl =
+      stripTrailingSlash(
+        unlinkify(
+          findBotAttribute("Trusted Media Proxy").value))
     let inboxName = findBotAttribute("Inbox Name").value
     let api = `https://api.telegram.org/bot${telegramApiKey}`
 
