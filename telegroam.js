@@ -329,7 +329,7 @@
         }
 
         let photo = url => `![photo](${url})`
-        let audio = url => `:hiccup[:audio {:controls true :src "${url}"}]`
+        let audio = url => `{{[[audio]]:${url}}}`
         let video = url => `:hiccup[:video {:controls true :src "${url}"}]`
 
         if (message.sticker) {
