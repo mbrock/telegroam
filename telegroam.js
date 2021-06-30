@@ -172,6 +172,13 @@
       return uid
     }
 
+    function blockExists(uid) {
+      return roamAlphaAPI.q(`[
+        :find (?block ...)
+        :where [?block :block/uid "${uid}"]
+      ]`).length > 0
+    }
+
     async function handleTelegramUpdate(result, i) {
       let { message, edited_message, poll } = result
 
@@ -184,7 +191,7 @@
       }
 
       if (message) {
-        await handleMessage()
+        handleMessage(message)
       }
 
       i++
@@ -279,7 +286,29 @@
 
         let uid = `telegram-${message.chat.id}-${message.message_id}`
 
-        createNestedBlock(inboxUid, {
+        console.log(message)
+
+        let parent = inboxUid
+
+        if (message.reply_to_message) {
+          parent = [
+            "telegram",
+            message.reply_to_message.chat.id,
+            message.reply_to_message.message_id,
+          ].join("-")
+
+          if (!blockExists(parent)) {
+            // the message replied to is included in the reply
+            // so we should use that
+            // but for now we just make a placeholder
+            createNestedBlock(inboxUid, {
+              uid: parent,
+              string: "[[Telegroam: placeholder for missing message]]"
+            })
+          }
+        }
+
+        createNestedBlock(parent, {
           uid,
           order: maxOrder + i,
           string: `[[${name}]] at ${hhmm}: ${text}`
@@ -496,7 +525,7 @@
     busy: 423,
   }
 
-  const lockBusy = Symbol("lock busy")
+  let currentLockPath
 
   async function runWithMutualExclusionLock({ waitSeconds, action }) {
     let lockId =
@@ -508,17 +537,23 @@
     let lockPath =
       `https://binary-semaphore.herokuapp.com/lock/${lockId}/${nonce}`
 
+    let acquirePath = `${lockPath}/acquire`
+    let releasePath = `${lockPath}/release`
+
     for (;;) {
       let result =
-        await fetch(lockPath, { method: "PUT" })
+        await fetch(acquirePath, { method: "POST" })
 
       if (result.status === lockStatus.ok) {
+        currentLockPath = lockPath
+
         try {
           return await action()
         } finally {
           console.log("telegroam: releasing lock")
+          currentLockPath = null
           try {
-            await fetch(lockPath, { method: "DELETE" })
+            await fetch(releasePath, { method: "POST" })
           } catch (e) {
             console.error(e)
             throw e
@@ -546,6 +581,10 @@
       } catch (e) {
         console.error(e)
         console.log("telegroam: ignoring error; retrying in 30s")
+        if (currentLockPath) {
+          console.log("telegroam: releasing lock via beacon")
+          navigator.sendBeacon(currentLockPath + "/release")
+        }
         await sleep(30)
       }
     }
