@@ -97,6 +97,11 @@
     }
 
     let updateResponse = await GET(`getUpdates?offset=${updateId}&timeout=60`)
+
+    if (!updateResponse.result.length) {
+      return
+    }
+
     let dailyNoteUid = uidForToday()
 
     let inboxUid
@@ -121,22 +126,20 @@
 
     let maxOrder = findMaxOrder(inboxUid)
 
-    if (updateResponse.result.length) {
-      let i = 1
-      for (let result of updateResponse.result) {
-        await handleTelegramUpdate(result, i)
-        ++i
-      }
-
-      // Save the latest Telegram message ID in the Roam graph.
-      let lastUpdate = updateResponse.result[updateResponse.result.length - 1]
-      roamAlphaAPI.updateBlock({
-        block: {
-          uid: updateIdBlock.uid,
-          string: `Latest Update ID:: ${lastUpdate.update_id}`
-        }
-      })
+    let i = 1
+    for (let result of updateResponse.result) {
+      await handleTelegramUpdate(result, i)
+      ++i
     }
+
+    // Save the latest Telegram message ID in the Roam graph.
+    let lastUpdate = updateResponse.result[updateResponse.result.length - 1]
+    roamAlphaAPI.updateBlock({
+      block: {
+        uid: updateIdBlock.uid,
+        string: `Latest Update ID:: ${lastUpdate.update_id}`
+      }
+    })
 
     function findMaxOrder(parent) {
       let orders = roamAlphaAPI.q(`[
