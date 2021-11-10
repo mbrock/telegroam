@@ -280,7 +280,7 @@
           text = "#Location"
         if (message.voice)
           text = "#Voice"
-        if (message.video_note)
+        if (message.video || message.video_note || message.animation)
           text = "#Video"
         if (message.photo)
           text = "#Photo"
@@ -379,9 +379,16 @@
         if (message.voice) {
           await insertFile(message.voice.file_id, audio)
         }
+        if (message.video) {
+          await insertFile(message.video.file_id, video)
+        }
 
         if (message.video_note) {
           await insertFile(message.video_note.file_id, video)
+        }
+
+        if (message.animation) {
+          await insertFile(message.animation.file_id, video)
         }
 
         if (message.document) {
