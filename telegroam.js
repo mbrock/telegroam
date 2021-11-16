@@ -118,8 +118,11 @@
       inboxUid = inboxUids[0]
     } else {
       inboxUid = roamAlphaAPI.util.generateUID()
+
+      // put the inbox at the bottom of the daily note
+      let order = findMaxOrder(dailyNoteUid) + 1
       roamAlphaAPI.createBlock({
-        location: { "parent-uid": dailyNoteUid, order: 0 },
+        location: { "parent-uid": dailyNoteUid, order },
         block: { uid: inboxUid, string: inboxName }
       })
     }
