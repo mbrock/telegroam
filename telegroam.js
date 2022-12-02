@@ -548,36 +548,36 @@
       roamAlphaAPI.util.generateUID()
 
     let lockPath =
-      `https://binary-semaphore.herokuapp.com/lock/${lockId}/${nonce}`
+        `https://roam-binary-semaphore.herokuapp.com/lock/${lockId}/${nonce}`
 
-    let acquirePath = `${lockPath}/acquire`
-    let releasePath = `${lockPath}/release`
+      let acquirePath = `${lockPath}`
+      let releasePath = `${lockPath}`
 
-    for (;;) {
-      let result =
-        await fetch(acquirePath, { method: "POST" })
+      for (;;) {
+          let result =
+              await fetch(acquirePath, { method: "PUT" })
 
-      if (result.status === lockStatus.ok) {
-        currentLockPath = lockPath
+          if (result.status === lockStatus.ok) {
+              currentLockPath = lockPath
 
-        try {
-          return await action()
-        } finally {
-          console.log("telegroam: releasing lock")
-          currentLockPath = null
-          try {
-            await fetch(releasePath, { method: "POST" })
-          } catch (e) {
-            console.error(e)
-            throw e
+              try {
+                  return await action()
+              } finally {
+                  console.log("telegroam: releasing lock")
+                  currentLockPath = null
+                  try {
+                      await fetch(releasePath, { method: "DELETE" })
+                  } catch (e) {
+                      console.error(e)
+                      throw e
+                  }
+              }
+
+          } else if (result.status === lockStatus.busy) {
+              console.log(`telegroam: lock busy; waiting ${waitSeconds}s`)
+              await sleep(waitSeconds)
           }
-        }
-
-      } else if (result.status === lockStatus.busy) {
-        console.log(`telegroam: lock busy; waiting ${waitSeconds}s`)
-        await sleep(waitSeconds)
       }
-    }
   }
 
   async function updateFromTelegramContinuously() {
