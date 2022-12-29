@@ -242,10 +242,10 @@
 
         let url = urlWithParams(
           "https://www.openstreetmap.org/export/embed.html", {
-            layer: "mapnik",
-            bbox,
-            marker
-          })
+          layer: "mapnik",
+          bbox,
+          marker
+        })
 
         return {
           embed: `:hiccup[:iframe {
@@ -548,14 +548,14 @@
       roamAlphaAPI.util.generateUID()
 
     let lockPath =
-      `https://binary-semaphore.herokuapp.com/lock/${lockId}/${nonce}`
+      `https://binary-semaphore.glitch.me/lock/${lockId}/${nonce}`
 
-    let acquirePath = `${lockPath}/acquire`
-    let releasePath = `${lockPath}/release`
+    let acquirePath = `${lockPath}`
+    let releasePath = `${lockPath}`
 
-    for (;;) {
+    for (; ;) {
       let result =
-        await fetch(acquirePath, { method: "POST" })
+        await fetch(acquirePath, { method: "PUT" })
 
       if (result.status === lockStatus.ok) {
         currentLockPath = lockPath
@@ -566,7 +566,7 @@
           console.log("telegroam: releasing lock")
           currentLockPath = null
           try {
-            await fetch(releasePath, { method: "POST" })
+            await fetch(releasePath, { method: "DELETE" })
           } catch (e) {
             console.error(e)
             throw e
@@ -581,7 +581,7 @@
   }
 
   async function updateFromTelegramContinuously() {
-    for (;;) {
+    for (; ;) {
       try {
         let result = await runWithMutualExclusionLock({
           waitSeconds: 30,
