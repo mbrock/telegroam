@@ -547,6 +547,7 @@
     let nonce =
       roamAlphaAPI.util.generateUID()
 
+    //  replace this with your own copy Remixed from glitch.com/~binary-semaphore
     let lockPath =
       `https://binary-semaphore.glitch.me/lock/${lockId}/${nonce}`
 

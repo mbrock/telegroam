@@ -4,21 +4,16 @@ Send messages and photos to your own Telegram bot and have them appear
 in the Daily Notes page of your Roam graph.
 
 You don't need to run any software or servers other than this
-JavaScript plugin for your Roam graph.
+JavaScript plugin for your Roam graph and, your own copy of the proxy implemented here, which you can Remix on Glitch.
 
-## ⚠️ Warning!
+## Prerequisites
 
-If you use the default proxy URL as in the instructions below, your
-media files will get passed through a trusted middleman.
+You'll need a running instance of [binary-semaphore](https://github.com/cori/binary-semaphore) to point your `roam/js` script to. If you use the address in the `telegroam.js` file you'll be sending your mutex calls through my Glitch instance of that project, with no guarantees for continued maintenance or uptime, but the linked-to repo can help you get set up with your own coy on Glitch.
 
-You can run your own proxy easily using Heroku's free tier. This is
-how I run my proxy.
-
-Click the button below and Heroku will guide you through the whole
-thing with zero configuration or coding. You will end up with your
+You'll also want your own instance of the proxy implemented in _this_ project. Click the button below and you will get a Gllitch Remix of the proxy. You will end up with your
 very own proxy URL.
 
-[![Deploy](https://www.herokucdn.com/deploy/button.svg)](https://heroku.com/deploy)
+[![Remix on Glitch](https://cdn.glitch.com/2703baf2-b643-4da7-ab91-7ee2a2d00b5b%2Fremix-button-v2.svg)](https://glitch.com/edit/#!/remix/telegroam)
 
 ### Why is a proxy necessary?
 
@@ -43,10 +38,10 @@ I will make this more convenient later.
 
 4. Paste these nodes somewhere on the [[Telegram Bot]] page:
 
-   - Inbox Name:: [[Inbox]]
+   - Inbox Name:: [[Inbox]] _or whatever page you want these to appear under_
    - API Key:: insert key you get from Telegram's bot system
      - {{[[TODO]]}} update the Telegram API key above
-   - Trusted Media Proxy:: https://telegram-cors-proxy.herokuapp.com
+   - Trusted Media Proxy:: _insert the public URL of the Glitch project you Remixed above_
    - Latest Update ID::
 
 5. Make a block with the text `{{[[roam/js]]}}`.
