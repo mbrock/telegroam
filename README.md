@@ -35,13 +35,14 @@ This could be made more convenient....
 
 3. Make a page in your Roam called [[Telegram Bot]].
 
-4. Paste these nodes somewhere on the [[Telegram Bot]] page:
+4. Paste these nodes somewhere on the [[Telegram Bot]] page and replace values as appropriate:
 
-   - Inbox Name:: [[Inbox]] _or whatever page you want these to appear under_
-   - API Key:: insert key you get from Telegram's bot system
-     - {{[[TODO]]}} update the Telegram API key above
-   - Trusted Media Proxy:: _insert the public URL of the Glitch project you Remixed above_
-   - Latest Update ID::
+```
+   Inbox Name:: `[[Inbox]] or whatever page you want these to appear under`
+   API Key:: `insert key you get from Telegram's bot system`
+   Trusted Media Proxy:: `insert the public URL of the Glitch project you Remixed above`
+   Latest Update ID:: `leave blank`
+```
 
 5. Make a block with the text `{{[[roam/js]]}}`.
 
