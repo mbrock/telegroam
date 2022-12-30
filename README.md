@@ -12,7 +12,7 @@ You'll need a running instance of [binary-semaphore](https://github.com/cori/bin
 
 You'll also want your own instance of the proxy implemented in _this_ project. Click the button below and you will get a Glitch Remix of the proxy with your very own proxy URL.
 
-[![Remix on Glitch](https://cdn.glitch.com/2703baf2-b643-4da7-ab91-7ee2a2d00b5b%2Fremix-button-v2.svg)](https://glitch.com/edit/#!/remix/telegroam)
+[![Remix on Glitch](https://cdn.glitch.com/2703baf2-b643-4da7-ab91-7ee2a2d00b5b%2Fremix-button-v2.svg)](https://glitch.com/edit/#!/remix/telegroam-proxy)
 
 ### Why is a proxy necessary?
 
