@@ -37,12 +37,10 @@ This could be made more convenient....
 
 4. Paste these nodes somewhere on the [[Telegram Bot]] page and replace values as appropriate:
 
-```
-   Inbox Name:: `[[Inbox]] or whatever page you want these to appear under`
-   API Key:: `insert key you get from Telegram's bot system`
-   Trusted Media Proxy:: `insert the public URL of the Glitch project you Remixed above`
-   Latest Update ID:: `leave blank`
-```
+   - Inbox Name:: `[[Inbox]] or whatever page you want these to appear under`
+   - API Key:: `insert key you get from Telegram's bot system`
+   - Trusted Media Proxy:: `insert the public URL of the Glitch project you Remixed above`
+   - Latest Update ID:: `leave blank`
 
 5. Make a block with the text `{{[[roam/js]]}}`.
 
@@ -50,3 +48,9 @@ This could be made more convenient....
    of `telegroam.js` inside.
 
 7. Reload Roam.
+
+8. Send a message to your bot. It should appear on your Daily Notes page under the page heading you selected within a few moments.
+
+## Other notes
+
+Good news! A single instance of the both the `binary-semaphore` and `telegroam-proxy` projects can handle multiple Roam graphs / Telegram bot combinations. A Roam graph is a consumer of a bot, so multiple graphs can consume the "output" of a single bot by sharing the bot's API key, or each graph can be configured with its own bot key.
