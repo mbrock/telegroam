@@ -8,10 +8,9 @@ JavaScript plugin for your Roam graph and, your own copy of the proxy implemente
 
 ## Prerequisites
 
-You'll need a running instance of [binary-semaphore](https://github.com/cori/binary-semaphore) to point your `roam/js` script to. If you use the address in the `telegroam.js` file you'll be sending your mutex calls through my Glitch instance of that project, with no guarantees for continued maintenance or uptime, but the linked-to repo can help you get set up with your own coy on Glitch.
+You'll need a running instance of [binary-semaphore](https://github.com/cori/binary-semaphore) to point your `roam/js` script to. If you use the address in the `telegroam.js` file you'll be sending your mutex calls through an existing Glitch instance of that project, with no guarantees for continued maintenance or uptime, but the linked-to repo can help you get set up with your own copy on Glitch, and there's not much private data to be concerned about in using a shared instance. 
 
-You'll also want your own instance of the proxy implemented in _this_ project. Click the button below and you will get a Gllitch Remix of the proxy. You will end up with your
-very own proxy URL.
+You'll also want your own instance of the proxy implemented in _this_ project. Click the button below and you will get a Glitch Remix of the proxy with your very own proxy URL.
 
 [![Remix on Glitch](https://cdn.glitch.com/2703baf2-b643-4da7-ab91-7ee2a2d00b5b%2Fremix-button-v2.svg)](https://glitch.com/edit/#!/remix/telegroam)
 
@@ -27,7 +26,7 @@ because of a bug. Instead we have to download via the proxy server.
 
 ## Installation
 
-I will make this more convenient later.
+This could be made more convenient....
 
 1. In Telegram, talk to @BotFather to create a new bot and get an API
    key for it.
