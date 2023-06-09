@@ -46,7 +46,7 @@ I will make this more convenient later.
    - Inbox Name:: [[Inbox]]
    - API Key:: insert key you get from Telegram's bot system
      - {{[[TODO]]}} update the Telegram API key above
-   - Trusted Media Proxy:: https://telegram-cors-proxy.herokuapp.com
+   - Trusted Media Proxy:: https://telegroam-cors-proxy.herokuapp.com
    - Latest Update ID::
 
 5. Make a block with the text `{{[[roam/js]]}}`.
